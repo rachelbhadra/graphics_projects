@@ -1,0 +1,519 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Assistant', sans-serif;
+    color: #514f59;
+    background-color: #e8e9f7;
+    font-weight: lighter;
+    line-height: 22pt;
+    font-size: 12.5pt;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Fira Sans', sans-serif;
+    font-weight: lighter;
+  }
+
+  h1 {
+    color: #4d4b7a;
+    font-size: 36px;
+  }
+
+  h2 {
+    color: #1e1b35;
+    font-size: 26px;
+  }
+
+  h3 {
+    color: #4d4b7a;
+    font-size: 24px;
+  }
+
+</style>
+<title>Mesh Editor</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Rochester" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Fira+Sans:200" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">MESH EDITOR</h1>
+<h2 align="middle">Rachel Bhadra</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">OVERVIEW</h2>
+<p>In this project, I implemented several features of a tool used to edit COLLADA mesh files. I first used de Casteljau's algorithm to build Bezier curves and surfaces. I then added edge flipping and splitting functionality by manipulating half-edge mesh structures. Finally, I implemented upsampling through loop subdivision. It is interesting to be able to visualize these concepts and actually interact with them using the meshedit tool. Just implementing these minimal functions dramatically changes what can be done to a mesh and how it can be altered.</p>
+
+<h2 align="middle">SECTION I: BEZIER CURVES AND SURFACES</h2>
+
+<h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
+
+<p>In this section, I implemented de Casteljau's algorithm in order to evaluate Bezier curves. This essentially consists of many linear interpolations between consecutive points. If we have <i>n</i> points, then we execute <i>n - 1</i> levels of interpolation, until we have reduced the curve down to a single point. To implement this, I created a lerp helper function and looped through the points, calling lerp on every consecutive pair and adding the result to a result vector. The levels of interpolation can be seen in the images below.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1a_1.png" align="middle" width="320px"/>
+        <figcaption align="middle">1 iteration</figcaption>
+      </td>
+      <td>
+        <img src="images/1a_2.png" align="middle" width="320px"/>
+        <figcaption align="middle">2 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1a_3.png" align="middle" width="320px"/>
+        <figcaption align="middle">3 iterations</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1a_4.png" align="middle" width="320px"/>
+        <figcaption align="middle">4 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1a_5.png" align="middle" width="320px"/>
+        <figcaption align="middle">5 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1a_6.png" align="middle" width="320px"/>
+        <figcaption align="middle">6 iterations</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1a_7.png" align="middle" width="700px"/>
+        <figcaption align="middle">Final Bezier curve</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Below is another example with different points and an adjusted t value.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1b_1.png" align="middle" width="320px"/>
+        <figcaption align="middle">1 iteration</figcaption>
+      </td>
+      <td>
+        <img src="images/1b_2.png" align="middle" width="320px"/>
+        <figcaption align="middle">2 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1b_3.png" align="middle" width="320px"/>
+        <figcaption align="middle">3 iterations</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1b_4.png" align="middle" width="320px"/>
+        <figcaption align="middle">4 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1b_5.png" align="middle" width="320px"/>
+        <figcaption align="middle">5 iterations</figcaption>
+      </td>
+      <td>
+        <img src="images/1b_6.png" align="middle" width="320px"/>
+        <figcaption align="middle">6 iterations</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1b_7.png" align="middle" width="700px"/>
+        <figcaption align="middle">Final Bezier curve</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau subdivision</h3>
+
+<p>We can extend de Casteljau's algorithm to Bezier surfaces by using the same interpolation method multiple times. Given a parametric coordinate (<i>u</i>, <i>v</i> ) and  a 4 x 4 matrix of points, we first perform 1D de Casteljau subdivision on each row, with <i>t</i> = <i>u</i>. For this part, I implemented the given helper function evaluate1D. These 1D interpolations us a total of 4 points (since there are 4 rows), which we can then again perform 1D subdivision on, with <i>t</i> = <i>v</i>. The images below show the Utah teapot mesh, sampled using bezier patches.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/2_1.png" align="middle" width="700px"/>
+        <figcaption align="middle">Utah teapot mesh</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/2_2.png" align="middle" width="700px"/>
+        <figcaption align="middle">Utah teapot with GLSL shaders</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h2 align="middle">SECTION II: LOOP SUBDIVISION OF GENERAL TRIANGLE MESHES</h2>
+
+<h3 align="middle">Part 3: Average normals for half-edge meshes</h3>
+
+<p>When using the flat shading technique, each polygon surface is distinctly visible. This is not very realistic. In order to achieve a smoothing effect on the model, I calculated area-weighted average normal vectors at each vertex. To do this, I iterate through the half-edges pointing toward the vertex. I then take the cross product of each consecutive pair of half-edges, and add it to the total normal sum. Once all half-edges have been visited, the renormalized unit vector is returned. The images below show the difference between the default flat shading and shading with averaged normals.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/3_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot mesh</figcaption>
+      </td>
+      <td>
+        <img src="images/3_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot with averaged normals</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/3_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot mesh with GLSL shaders</figcaption>
+      </td>
+      <td>
+        <img src="images/3_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot with GLSL shaders and averaged normals</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 4: Half-edge flip</h3>
+<p>In order to implement the flip functionality, I first created diagrams as suggested to keep track of all components. I then created variables for each halfedge, vertex, and face element involved in the flip. Referring to my diagrams (shown below), I reassigned the correct variables to each half-edge.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4_a.png" align="middle" width="500px" height="450"/>
+        <figcaption align="middle">Before flip</figcaption>
+      </td>
+      <td>
+        <img src="images/4_b.png" align="middle" width="500px" height="450"/>
+        <figcaption align="middle">After flip</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+<p>I initially assigned my vertices wrong, basing them on which vertex the half-edge was pointing toward, rather than away from. Once I fixed this, the edge would flip but some other adjacent edges would disappear. When I flipped again, entire faces would vanish. I realized I had accidentally assigned all half-edges to have e0 as their edge. After I assigned the right edges to each half-edge, it seemed to be working. However, after flipping twice, a face would disappear. Flipping twice again brought the face back. I figured there was something wrong with my face assignments, so I added two lines of code to the end of my function, reasigning the correct half-edges to each face. Once I made this adjustment, everything ran as expected. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4_1.png" align="middle" width="700px"/>
+        <figcaption align="middle">Utah teapot with flipped diagonals</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4_2.png" align="middle" width="700px"/>
+        <figcaption align="middle">Utah teapot with flipped horizontal lines</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 5: Half-edge split</h3>
+<p>Conceptually, the implementation of edge splits was very similar to that of the previous part. The difference is that edge splits require the creation of several new components in the mesh. I approached the problem the same way as before, by making diagrams to keep track of each element.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4_a.png" align="middle" width="500px" height="450"/>
+        <figcaption align="middle">Before split</figcaption>
+      </td>
+      <td>
+        <img src="images/5_a.png" align="middle" width="500px" height="450"/>
+        <figcaption align="middle">After split</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>As shown in the diagrams above, an edge split involves 12 half-edges (6 new), 5 vertices (1 new), 4 edges (3 new), and 4 faces (2 new). I created variables for each of these components, and reassigned them with the correct values. I initially was declaring the new elements incorrectly, as HalfEdgeIter() instead of newHalfEdge(), for instance. However, once I fixed this, the edge split function worked. The images below show some examples of what the mesh looks like before and after performing some edge splits and flips.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/5_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot before edge splits</figcaption>
+      </td>
+      <td>
+        <img src="images/5_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot after edge splits</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/5_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Original Utah teapot</figcaption>
+      </td>
+      <td>
+        <img src="images/5_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Utah teapot after edge flips and splits</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/5_5.png" align="middle" width="1000px"/>
+        <figcaption align="middle">art</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
+
+<p>In order to add loop subdivision, I first iterate through every vertex in the current mesh. I mark all vertices as old and calculate their new position according to the loop subdivision algorithm: 
+(1 - n * u) * original_position + u * neighbor_position_sum. 
+I store these values in the newPosition attribute of each vertex. I then loop through all the edges, marking them as old and calculating the new positions of their associated vertices using the new vertex position algorithm: 
+3/8 * (A + B) + 1/8 * (C + D) 
+for an edge AB flanked by opposite vertices C and D. After this, I loop through all old edges (whose vertices are also old) and split them. I assign the newly created vertex the new position from the just-split edge, and mark the 4 edges after the split as either old or new. Finally, I flip any edges between a new and old vertex and then assign all vertices their new positions.</p>
+
+<p>I was initially getting an infinite loop, because I was not checking whether the vertices at an edge's endpoints were old before splitting. At first I wasn't sure where the function was stalling, so I commented out the other loops one by one to narrow in on the problem. After I fixed this, I had to debug several small errors originating from inconsistent halfedge assignments in my splitEdge function. Everything seemed to be working, except teapot.bez and beetle.dae. In these files, there were a few random spikes sticking out at degree-3 vertices. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/err1.png" align="middle" width="500px"/>
+        <figcaption align="middle">teapot.bez</figcaption>
+      </td>
+      <td>
+        <img src="images/err2.png" align="middle" width="500px"/>
+        <figcaption align="middle">beetle.dae</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Thanks to Piazza, I figured out that the spikes were the result of me using vertex.degree() rather than calculating the degree manually. After fixing all my errors, here are the results of upsampling on the Utah teapot.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled Once</figcaption>
+      </td>
+      <td>
+        <img src="images/6_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled twice</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>When upsampling a mesh with distinct corners and edges, like a cube, the sharpness is lost. This can be seen below.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6_3.png" align="middle" width="320px"/>
+        <figcaption align="middle">Original Cube</figcaption>
+      </td>
+      <td>
+        <img src="images/6a_2.png" align="middle" width="320px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+      <td>
+        <img src="images/6a_3.png" align="middle" width="320px"/>
+        <figcaption align="middle">Upsampled twice</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>To lessen this effect, we can pre-split edges. For instance, splitting edges on one face can help preserve that face's edge.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6_6.png" align="middle" width="320px"/>
+        <figcaption align="middle">Altered Cube</figcaption>
+      </td>
+      <td>
+        <img src="images/6_7.png" align="middle" width="320px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+      <td>
+        <img src="images/6_8.png" align="middle" width="320px"/>
+        <figcaption align="middle">Upsampled twice</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>When applying loop subdivision to cube.dae, in addition to losing it's sharp edges, it becomes asymmetric. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6a_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Original cube</figcaption>
+      </td>
+      <td>
+        <img src="images/6a_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/6a_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled twice</figcaption>
+      </td>
+      <td>
+        <img src="images/6a_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled three times</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>We can pre-process the cube by spliting each diagonal so that it subdivides symmetrically. Spliting the diagonals balances out each face of the cube so that they subdivide more evenly. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6b_1.png" align="middle" width="500px"/>
+        <figcaption align="middle">Pre-processed cube</figcaption>
+      </td>
+      <td>
+        <img src="images/6b_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/6b_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled twice</figcaption>
+      </td>
+      <td>
+        <img src="images/6b_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled three times</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 7: Original mesh design</h3>
+
+<p>I created a flower mesh in Maya, and exported it to blender so it would be compatible. I started with a cube, adding edges and shaping it into a petal. I then duplicated it several times and rotated the petals into a flower. I used a similar technique to create the center of the flower and the sepal. I made the leaves similarly to how I made the petal (starting from a cube) and added a stem. I then joined all the components together, to create one mesh. Below are some images of my mesh.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/7_1.png" align="middle" width="700px"/>
+        <figcaption align="middle">Mesh in Blender</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/7_2.png" align="middle" width="500px"/>
+        <figcaption align="middle">Mesh as dae</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/7_3.png" align="middle" width="500px"/>
+        <figcaption align="middle">Flower mesh</figcaption>
+      </td>
+      <td>
+        <img src="images/7_4.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/7_5.png" align="middle" width="500px"/>
+        <figcaption align="middle">Flower mesh close up</figcaption>
+      </td>
+      <td>
+        <img src="images/7_6.png" align="middle" width="500px"/>
+        <figcaption align="middle">Upsampled once</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
